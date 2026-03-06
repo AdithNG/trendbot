@@ -42,6 +42,22 @@ cp .env.example .env
 python scripts/run_paper.py
 ```
 
+**Run in the background** (no terminal window needed, survives closing VS Code):
+
+```powershell
+start pythonw scripts\run_paper.py
+```
+
+Watch logs live:
+```powershell
+Get-Content logs\trading_bot.log -Wait -Tail 50
+```
+
+Stop the bot:
+```powershell
+taskkill /f /im pythonw.exe
+```
+
 Requires `.env` with `ALPACA_BASE_URL=https://paper-api.alpaca.markets`.
 
 ### Live trading (real money)
