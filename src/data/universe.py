@@ -77,6 +77,11 @@ class UniverseSelector:
                     pass
 
             sorted_syms = sorted(vol_scores, key=vol_scores.get, reverse=True)
+
+            if not sorted_syms:
+                logger.warning("Liquidity filter returned 0 symbols, using fallback universe")
+                return FALLBACK_UNIVERSE[:max_symbols]
+
             return sorted_syms[:max_symbols]
 
         except Exception as e:
