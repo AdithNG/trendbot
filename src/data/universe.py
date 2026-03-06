@@ -56,28 +56,16 @@ class UniverseSelector:
             end = date.today().isoformat()
             start = (date.today() - timedelta(days=45)).isoformat()
 
-            data = yf.download(
-                tickers=symbols[:100],  # Limit to avoid rate limits
-                start=start,
-                end=end,
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=True,
-                progress=False,
-                threads=True,
-            )
-
-            is_multi = isinstance(data.columns, pd.MultiIndex)
             vol_scores: dict[str, float] = {}
-            for sym in symbols[:100]:
+            for sym in symbols[:50]:  # Check top 50 candidates
                 try:
-                    if is_multi:
-                        vol = data.xs(sym, axis=1, level=1)["Volume"].mean()
-                    else:
-                        vol = data["Volume"].mean()
+                    df = yf.Ticker(sym).history(start=start, end=end, interval="1d")
+                    if df.empty:
+                        continue
+                    vol = df["Volume"].mean()
                     if vol >= min_vol:
                         vol_scores[sym] = vol
-                except (KeyError, TypeError):
+                except Exception:
                     pass
 
             sorted_syms = sorted(vol_scores, key=vol_scores.get, reverse=True)
