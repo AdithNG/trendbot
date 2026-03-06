@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import pandas as pd
-import yfinance as yf
 from loguru import logger
 
-# Fallback list of highly liquid S&P 500 stocks if Wikipedia fetch fails
-FALLBACK_UNIVERSE = [
+# Top 20 most liquid S&P 500 stocks by average daily volume.
+# This list is stable — these names rarely change and all clear 5M+ shares/day.
+UNIVERSE = [
     "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B",
     "JPM", "JNJ", "V", "PG", "MA", "HD", "AVGO", "MRK", "COST", "PEP",
     "XOM", "LLY",
@@ -14,68 +13,18 @@ FALLBACK_UNIVERSE = [
 
 class UniverseSelector:
     """
-    Builds the trading universe from the S&P 500, filtered by liquidity.
-    The list is re-fetched at most once per day (cached in memory).
+    Returns a fixed list of the 20 most liquid S&P 500 stocks.
+
+    The previous approach (Wikipedia scrape + per-symbol volume filter) was
+    too slow (~2 min) and hit Yahoo Finance rate limits every cycle.
+    The hardcoded list is stable enough for daily EMA momentum trading.
     """
 
     def __init__(self, config: dict):
         self.config = config["universe"]
-        self._cache: list[str] = []
-        self._cache_date: str = ""
 
     def get_universe(self) -> list[str]:
-        from datetime import date
-        today = date.today().isoformat()
-        if self._cache and self._cache_date == today:
-            return self._cache
-
-        symbols = self._fetch_sp500()
-        filtered = self._filter_by_liquidity(symbols)
-        self._cache = filtered
-        self._cache_date = today
-        logger.info(f"Universe updated: {len(filtered)} symbols")
-        return filtered
-
-    def _fetch_sp500(self) -> list[str]:
-        try:
-            tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-            df = tables[0]
-            symbols = df["Symbol"].str.replace(".", "-", regex=False).tolist()
-            logger.debug(f"Fetched {len(symbols)} S&P 500 symbols from Wikipedia")
-            return symbols
-        except Exception as e:
-            logger.warning(f"Wikipedia fetch failed ({e}), using fallback universe")
-            return FALLBACK_UNIVERSE
-
-    def _filter_by_liquidity(self, symbols: list[str]) -> list[str]:
         max_symbols = self.config.get("max_symbols", 20)
-        min_vol = self.config.get("min_avg_volume", 5_000_000)
-
-        try:
-            from datetime import date, timedelta
-            end = date.today().isoformat()
-            start = (date.today() - timedelta(days=45)).isoformat()
-
-            vol_scores: dict[str, float] = {}
-            for sym in symbols[:50]:  # Check top 50 candidates
-                try:
-                    df = yf.Ticker(sym).history(start=start, end=end, interval="1d")
-                    if df.empty:
-                        continue
-                    vol = df["Volume"].mean()
-                    if vol >= min_vol:
-                        vol_scores[sym] = vol
-                except Exception:
-                    pass
-
-            sorted_syms = sorted(vol_scores, key=vol_scores.get, reverse=True)
-
-            if not sorted_syms:
-                logger.warning("Liquidity filter returned 0 symbols, using fallback universe")
-                return FALLBACK_UNIVERSE[:max_symbols]
-
-            return sorted_syms[:max_symbols]
-
-        except Exception as e:
-            logger.warning(f"Liquidity filter failed ({e}), using top {max_symbols} of fallback")
-            return FALLBACK_UNIVERSE[:max_symbols]
+        symbols = UNIVERSE[:max_symbols]
+        logger.debug(f"Universe: {len(symbols)} symbols")
+        return symbols
