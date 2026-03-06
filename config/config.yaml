@@ -35,5 +35,5 @@ backtest:
   data_interval: "1d"
 
 logging:
-  level: INFO
+  level: DEBUG
   log_dir: logs/

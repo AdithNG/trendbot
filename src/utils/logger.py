@@ -7,7 +7,8 @@ def setup_logging(config: dict):
     level = config.get("level", "INFO")
     log_dir = config.get("log_dir", "logs/")
 
-    logger.add(sys.stderr, level=level, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | {message}")
+    if sys.stderr is not None:
+        logger.add(sys.stderr, level=level, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | {message}")
     logger.add(
         f"{log_dir}/trading_bot.log",
         level=level,

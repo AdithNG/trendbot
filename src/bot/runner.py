@@ -63,11 +63,11 @@ class BotRunner:
 
     def run_cycle(self):
         if not self._in_trading_window():
-            logger.debug("Outside trading window — skipping cycle")
+            logger.debug("Outside trading window - skipping cycle")
             return
 
         if not self.broker.is_market_open():
-            logger.debug("Market not open according to Alpaca clock — skipping")
+            logger.debug("Market not open according to Alpaca clock - skipping")
             return
 
         account = self.broker.get_account()
