@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "trendbot"
+version = "0.1.0"
+description = "EMA momentum trading bot for Alpaca Markets"
+requires-python = ">=3.12"
+dependencies = [
+    "alpaca-py>=0.30.0",
+    "yfinance>=0.2.54",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "ta>=0.11.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "schedule>=1.2.0",
+    "loguru>=0.7.0",
+    "pytz>=2024.0",
+    "matplotlib>=3.7.0",
+]
+
+[project.optional-dependencies]
+backtest = ["vectorbt>=0.26.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
