@@ -40,23 +40,27 @@ class DataFetcher:
 
         result: dict[str, pd.DataFrame] = {}
 
-        if len(symbols) == 1:
-            sym = symbols[0]
-            df = data.copy()
-            df.columns = [c.lower() for c in df.columns]
-            df = df.dropna()
-            if not df.empty:
-                result[sym] = df
-        else:
-            for sym in symbols:
-                try:
-                    df = data[sym].copy()
-                    df.columns = [c.lower() for c in df.columns]
-                    df = df.dropna()
-                    if not df.empty:
-                        result[sym] = df
-                except (KeyError, TypeError):
-                    logger.warning(f"No data returned for {sym}")
+        if data.empty:
+            logger.warning("yfinance returned empty data")
+            return result
+
+        # New yfinance (>=0.2.x) returns (field, ticker) MultiIndex columns for
+        # multi-symbol downloads. Single-symbol downloads return flat columns.
+        is_multi = isinstance(data.columns, pd.MultiIndex)
+
+        for sym in symbols:
+            try:
+                if is_multi:
+                    df = data.xs(sym, axis=1, level=1).copy()
+                else:
+                    df = data.copy()
+                df.columns = [c.lower() for c in df.columns]
+                df = df.drop(columns=["adj close"], errors="ignore")
+                df = df.dropna()
+                if not df.empty:
+                    result[sym] = df
+            except (KeyError, TypeError):
+                logger.warning(f"No data returned for {sym}")
 
         logger.debug(f"Got data for {len(result)}/{len(symbols)} symbols")
         return result

@@ -67,10 +67,14 @@ class UniverseSelector:
                 threads=True,
             )
 
+            is_multi = isinstance(data.columns, pd.MultiIndex)
             vol_scores: dict[str, float] = {}
             for sym in symbols[:100]:
                 try:
-                    vol = data[sym]["Volume"].mean() if len(symbols) > 1 else data["Volume"].mean()
+                    if is_multi:
+                        vol = data.xs(sym, axis=1, level=1)["Volume"].mean()
+                    else:
+                        vol = data["Volume"].mean()
                     if vol >= min_vol:
                         vol_scores[sym] = vol
                 except (KeyError, TypeError):
