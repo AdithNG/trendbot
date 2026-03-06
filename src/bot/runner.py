@@ -38,6 +38,8 @@ class BotRunner:
         self.sg = SignalGenerator(config["strategy"])
         self.rm = RiskManager(config["risk"])
         self.state = PortfolioState()
+        self._entries_today: set[str] = set()  # symbols bought today (PDT tracking)
+        self._entries_date: str = ""
 
     # ------------------------------------------------------------------
     # Market hours guard
@@ -72,7 +74,14 @@ class BotRunner:
 
         account = self.broker.get_account()
         portfolio_value = account["portfolio_value"]
+        daytrade_count = account["daytrade_count"]
         self.state.update_equity(portfolio_value)
+
+        # Reset today's entry set at the start of each new trading day
+        today = datetime.now(EASTERN).date().isoformat()
+        if self._entries_date != today:
+            self._entries_today = set()
+            self._entries_date = today
 
         if self.rm.is_daily_loss_limit_breached(self.state.daily_pnl_pct):
             logger.warning(
@@ -106,13 +115,21 @@ class BotRunner:
                     if whole_shares > 0:
                         self.broker.place_market_order_qty(symbol, whole_shares, "BUY")
                         self.state.record_entry(symbol, entry_price, whole_shares, stop)
+                        self._entries_today.add(symbol)
                         open_positions[symbol] = {}  # Prevent duplicate orders this cycle
                     elif notional >= 1.0:  # Fractional order minimum $1
                         self.broker.place_market_order_notional(symbol, notional, "BUY")
                         self.state.record_entry(symbol, entry_price, notional / entry_price, stop)
+                        self._entries_today.add(symbol)
                         open_positions[symbol] = {}
 
                 elif signal == Signal.SELL and has_position:
+                    if self.rm.pdt_sell_blocked(symbol, portfolio_value, self._entries_today, daytrade_count):
+                        logger.warning(
+                            f"PDT: skipping sell of {symbol} - bought today and day trade limit nearly reached. "
+                            "Will hold overnight."
+                        )
+                        continue
                     self.broker.close_position(symbol)
                     self.state.record_exit(symbol)
                     open_positions.pop(symbol, None)

@@ -18,6 +18,7 @@ risk:
   position_pct_of_portfolio: 0.25   # 25% of portfolio per position
   max_open_positions: 4
   daily_loss_limit: 0.05            # Halt trading if daily P&L < -5%
+  pdt_max_day_trades: 3             # PDT rule: max day trades per 5-day window (under $25k)
 
 schedule:
   data_refresh_interval_minutes: 5
