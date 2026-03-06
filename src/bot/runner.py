@@ -176,6 +176,8 @@ class BotRunner:
         schedule.every(interval).minutes.do(self.run_cycle)
         schedule.every(interval).minutes.do(self.check_trailing_stops)
         logger.info(f"Bot started. Scanning every {interval} minutes.")
+        self.run_cycle()
+        self.check_trailing_stops()
         while True:
             schedule.run_pending()
             time.sleep(30)
