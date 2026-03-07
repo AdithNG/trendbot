@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 
 import pandas as pd
+from loguru import logger
 
 
 class Signal(Enum):
@@ -45,16 +46,35 @@ class SignalGenerator:
                 return Signal.SELL
 
         # --- Entry logic ---
-        if not has_position:
-            vol_ok = row["vol_ratio"] >= self.config["volume_confirmation_ratio"]
-            rsi_ok = self.config["rsi_oversold"] < row["rsi"] < self.config["rsi_overbought"]
-            trend_ok = row["close"] > row["ema_slow"]
-            cross_up = row["ema_cross"] == 1.0
+        cross_up = row["ema_cross"] == 1.0
+        vol_ok = row["vol_ratio"] >= self.config["volume_confirmation_ratio"]
+        rsi_ok = self.config["rsi_oversold"] < row["rsi"] < self.config["rsi_overbought"]
+        trend_ok = row["close"] > row["ema_slow"]
 
-            if cross_up and vol_ok and rsi_ok and trend_ok:
-                return Signal.BUY
+        signal = Signal.HOLD
+        if not has_position and cross_up and vol_ok and rsi_ok and trend_ok:
+            signal = Signal.BUY
 
-        return Signal.HOLD
+        # Log what the indicators look like and why the signal is what it is
+        reasons = []
+        if not cross_up:
+            reasons.append(f"no_cross(ema_fast={row['ema_fast']:.2f} vs ema_slow={row['ema_slow']:.2f})")
+        if not vol_ok:
+            reasons.append(f"vol_low({row['vol_ratio']:.2f}x < {self.config['volume_confirmation_ratio']}x)")
+        if not rsi_ok:
+            reasons.append(f"rsi_out({row['rsi']:.1f}, need {self.config['rsi_oversold']}-{self.config['rsi_overbought']})")
+        if not trend_ok:
+            reasons.append(f"below_ema(close={row['close']:.2f} < ema_slow={row['ema_slow']:.2f})")
+
+        hold_reason = ", ".join(reasons) if reasons else "all_ok"
+        logger.debug(
+            f"Signal={signal.value} pos={has_position} | "
+            f"rsi={row['rsi']:.1f} vol={row['vol_ratio']:.2f}x "
+            f"ema_fast={row['ema_fast']:.2f} ema_slow={row['ema_slow']:.2f} "
+            f"cross={int(row['ema_cross'])} | {hold_reason}"
+        )
+
+        return signal
 
     # ------------------------------------------------------------------
     # Vectorised versions — used by BacktestEngine to stay in sync
