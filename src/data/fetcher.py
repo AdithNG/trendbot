@@ -35,7 +35,9 @@ class DataFetcher:
         result: dict[str, pd.DataFrame] = {}
         for sym in symbols:
             try:
-                ticker = yf.Ticker(sym)
+                # Alpaca crypto symbols use "BTC/USD"; yfinance uses "BTC-USD"
+                yf_sym = sym.replace("/", "-")
+                ticker = yf.Ticker(yf_sym)
                 df = ticker.history(start=start, end=end, interval=interval, auto_adjust=True)
                 if df.empty:
                     continue

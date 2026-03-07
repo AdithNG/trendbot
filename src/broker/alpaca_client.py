@@ -70,6 +70,11 @@ class AlpacaClient:
     # Orders
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _tif(symbol: str) -> TimeInForce:
+        """Crypto requires GTC; equities use DAY."""
+        return TimeInForce.GTC if "/" in symbol else TimeInForce.DAY
+
     def place_market_order_qty(self, symbol: str, qty: float, side: str) -> str:
         """Place a market order for a whole number of shares."""
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
@@ -77,26 +82,27 @@ class AlpacaClient:
             symbol=symbol,
             qty=qty,
             side=order_side,
-            time_in_force=TimeInForce.DAY,
+            time_in_force=self._tif(symbol),
         )
         order = self.client.submit_order(req)
-        logger.info(f"Order placed: {side} {qty} shares of {symbol} | id={order.id}")
+        logger.info(f"Order placed: {side} {qty} of {symbol} | id={order.id}")
         return str(order.id)
 
     def place_market_order_notional(self, symbol: str, notional: float, side: str) -> str:
         """
         Place a fractional market order using a dollar amount.
         Used for small accounts where floor(position_value / price) == 0.
+        Also the preferred method for crypto (arbitrary fractional quantities).
         """
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
         req = MarketOrderRequest(
             symbol=symbol,
             notional=round(notional, 2),
             side=order_side,
-            time_in_force=TimeInForce.DAY,
+            time_in_force=self._tif(symbol),
         )
         order = self.client.submit_order(req)
-        logger.info(f"Order placed: {side} ${notional:.2f} of {symbol} (fractional) | id={order.id}")
+        logger.info(f"Order placed: {side} ${notional:.2f} of {symbol} (notional) | id={order.id}")
         return str(order.id)
 
     def is_market_open(self) -> bool:

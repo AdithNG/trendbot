@@ -2,6 +2,12 @@ universe:
   mode: sp500_top_liquid
   max_symbols: 20
   min_avg_volume: 5_000_000
+  crypto_symbols:
+    - "BTC/USD"
+    - "ETH/USD"
+    - "SOL/USD"
+    - "AVAX/USD"
+    - "LINK/USD"
 
 strategy:
   name: ema_momentum

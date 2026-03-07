@@ -138,6 +138,68 @@ class BotRunner:
                 logger.error(f"Error processing {symbol}: {e}")
 
     # ------------------------------------------------------------------
+    # Crypto cycle (24/7, no market hours, no PDT)
+    # ------------------------------------------------------------------
+
+    def run_crypto_cycle(self):
+        """
+        Crypto trading cycle.
+
+        Differences from equity cycle:
+          - Runs 24/7 (no market hours guard)
+          - No PDT restriction (crypto is exempt)
+          - Always uses notional orders (BTC prices make whole-share qty impractical)
+        """
+        account = self.broker.get_account()
+        portfolio_value = account["portfolio_value"]
+        self.state.update_equity(portfolio_value)
+
+        if self.rm.is_daily_loss_limit_breached(self.state.daily_pnl_pct):
+            logger.warning(
+                f"Daily loss limit breached ({self.state.daily_pnl_pct:.2%}). "
+                "No new crypto trades."
+            )
+            return
+
+        symbols = self.universe.get_crypto_universe()
+        if not symbols:
+            return
+
+        price_data = self.fetcher.get_warmup_bars(symbols, lookback_days=120)
+        open_positions = self.broker.get_open_positions()
+
+        for symbol, df in price_data.items():
+            try:
+                df = compute_indicators(df, self.config["strategy"])
+                has_position = symbol in open_positions
+
+                signal = self.sg.get_signal(df, has_position)
+
+                if signal == Signal.BUY:
+                    if self.rm.max_positions_reached(len(open_positions)):
+                        continue
+
+                    entry_price = df["close"].iloc[-1]
+                    atr = df["atr"].iloc[-1]
+                    _, notional = self.rm.compute_position_size(portfolio_value, entry_price)
+                    stop = self.rm.compute_stop_price(entry_price, atr)
+
+                    if notional >= 1.0:
+                        self.broker.place_market_order_notional(symbol, notional, "BUY")
+                        self.state.record_entry(symbol, entry_price, notional / entry_price, stop)
+                        open_positions[symbol] = {}
+                        logger.info(f"Crypto BUY: ${notional:.2f} of {symbol} @ {entry_price:.2f}")
+
+                elif signal == Signal.SELL and has_position:
+                    # No PDT check for crypto
+                    self.broker.close_position(symbol)
+                    self.state.record_exit(symbol)
+                    open_positions.pop(symbol, None)
+
+            except Exception as e:
+                logger.error(f"Error processing crypto {symbol}: {e}")
+
+    # ------------------------------------------------------------------
     # Trailing stop check (runs every cycle for open positions)
     # ------------------------------------------------------------------
 
@@ -175,9 +237,11 @@ class BotRunner:
         interval = self.config["schedule"]["data_refresh_interval_minutes"]
         schedule.every(interval).minutes.do(self.run_cycle)
         schedule.every(interval).minutes.do(self.check_trailing_stops)
-        logger.info(f"Bot started. Scanning every {interval} minutes.")
+        schedule.every(interval).minutes.do(self.run_crypto_cycle)
+        logger.info(f"Bot started. Equity + crypto scanning every {interval} minutes.")
         self.run_cycle()
         self.check_trailing_stops()
+        self.run_crypto_cycle()
         while True:
             schedule.run_pending()
             time.sleep(30)

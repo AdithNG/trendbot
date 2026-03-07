@@ -26,5 +26,10 @@ class UniverseSelector:
     def get_universe(self) -> list[str]:
         max_symbols = self.config.get("max_symbols", 20)
         symbols = UNIVERSE[:max_symbols]
-        logger.debug(f"Universe: {len(symbols)} symbols")
+        logger.debug(f"Equity universe: {len(symbols)} symbols")
+        return symbols
+
+    def get_crypto_universe(self) -> list[str]:
+        symbols = self.config.get("crypto_symbols", [])
+        logger.debug(f"Crypto universe: {len(symbols)} symbols")
         return symbols
