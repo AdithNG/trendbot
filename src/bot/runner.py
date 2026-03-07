@@ -165,7 +165,7 @@ class BotRunner:
         if not symbols:
             return
 
-        price_data = self.fetcher.get_warmup_bars(symbols, lookback_days=120)
+        price_data = self.fetcher.get_crypto_warmup_bars(symbols, lookback_days=120)
         open_positions = self.broker.get_open_positions()
 
         for symbol, df in price_data.items():
