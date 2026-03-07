@@ -100,6 +100,7 @@ class BotRunner:
                 has_position = symbol in open_positions
 
                 signal = self.sg.get_signal(df, has_position)
+                logger.debug(f"{symbol}: {self.sg._last_reason}")
 
                 if signal == Signal.BUY:
                     if self.rm.max_positions_reached(len(open_positions)):
@@ -174,6 +175,7 @@ class BotRunner:
                 has_position = symbol in open_positions
 
                 signal = self.sg.get_signal(df, has_position)
+                logger.debug(f"{symbol}: {self.sg._last_reason}")
 
                 if signal == Signal.BUY:
                     if self.rm.max_positions_reached(len(open_positions)):

@@ -55,24 +55,16 @@ class SignalGenerator:
         if not has_position and cross_up and vol_ok and rsi_ok and trend_ok:
             signal = Signal.BUY
 
-        # Log what the indicators look like and why the signal is what it is
-        reasons = []
-        if not cross_up:
-            reasons.append(f"no_cross(ema_fast={row['ema_fast']:.2f} vs ema_slow={row['ema_slow']:.2f})")
-        if not vol_ok:
-            reasons.append(f"vol_low({row['vol_ratio']:.2f}x < {self.config['volume_confirmation_ratio']}x)")
-        if not rsi_ok:
-            reasons.append(f"rsi_out({row['rsi']:.1f}, need {self.config['rsi_oversold']}-{self.config['rsi_overbought']})")
-        if not trend_ok:
-            reasons.append(f"below_ema(close={row['close']:.2f} < ema_slow={row['ema_slow']:.2f})")
-
-        hold_reason = ", ".join(reasons) if reasons else "all_ok"
-        logger.debug(
-            f"Signal={signal.value} pos={has_position} | "
-            f"rsi={row['rsi']:.1f} vol={row['vol_ratio']:.2f}x "
-            f"ema_fast={row['ema_fast']:.2f} ema_slow={row['ema_slow']:.2f} "
-            f"cross={int(row['ema_cross'])} | {hold_reason}"
-        )
+        # Return reasons alongside signal so the caller can log with the symbol name
+        if not has_position:
+            reasons = []
+            if not cross_up:   reasons.append("no EMA crossover")
+            if not vol_ok:     reasons.append("volume too low")
+            if not rsi_ok:     reasons.append("RSI out of range")
+            if not trend_ok:   reasons.append("price below slow EMA")
+            self._last_reason = ", ".join(reasons) if reasons else "conditions met"
+        else:
+            self._last_reason = "holding position"
 
         return signal
 
